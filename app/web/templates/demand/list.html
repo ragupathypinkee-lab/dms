@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}需求列表 - {{ app_name }}{% endblock %}
+{% block title %}智能体需求看板 - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
     <div>
-        <h1>需求列表</h1>
+        <h1>智能体需求看板</h1>
         <p class="text-muted mb-0">
             {% if current_user.role == 'admin' %}
-            查看和管理全部 AI 需求登记记录
+            汇聚全校各单位 AI 需求，推动从场景收集到智能体上线全流程管理
             {% else %}
-            查看和管理我的 AI 需求登记记录
+            提交本单位 AI 应用场景，跟踪智能体从评估、设计到上线的孵化进展
             {% endif %}
         </p>
     </div>
@@ -18,7 +18,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
             <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/>
         </svg>
-        登记需求
+        提交 AI 需求
     </a>
 </div>
 
@@ -40,7 +40,7 @@
         <div class="card stat-card stat-card-pending h-100">
             <div class="card-body">
                 <div class="stat-card-header">
-                    <span class="stat-label">待评估</span>
+                    <span class="stat-label">需求收集</span>
                     <span class="stat-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
                     </span>
@@ -53,7 +53,7 @@
         <div class="card stat-card stat-card-developing h-100">
             <div class="card-body">
                 <div class="stat-card-header">
-                    <span class="stat-label">开发中</span>
+                    <span class="stat-label">孵化中</span>
                     <span class="stat-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M6.5 1A1.5 1.5 0 0 0 5 2.5V3H1.5A1.5 1.5 0 0 0 0 4.5v8A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 14.5 3H11v-.5A1.5 1.5 0 0 0 9.5 1h-3zm0 1h3a.5.5 0 0 1 .5.5V3H6v-.5a.5.5 0 0 1 .5-.5zm1.886 6.914L15 7.151V12.5a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5V7.15l6.614 1.764a1.5 1.5 0 0 0 .772 0zM1.5 4h13a.5.5 0 0 1 .5.5v1.616L8.129 7.948a.5.5 0 0 1-.258 0L1 6.116V4.5a.5.5 0 0 1 .5-.5z"/></svg>
                     </span>
@@ -66,7 +66,7 @@
         <div class="card stat-card stat-card-completed h-100">
             <div class="card-body">
                 <div class="stat-card-header">
-                    <span class="stat-label">已完成</span>
+                    <span class="stat-label">已上线</span>
                     <span class="stat-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>
                     </span>
@@ -79,7 +79,7 @@
         <div class="card stat-card stat-card-priority h-100">
             <div class="card-body">
                 <div class="stat-card-header">
-                    <span class="stat-label">高优需求</span>
+                    <span class="stat-label">重点需求</span>
                     <span class="stat-card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/></svg>
                     </span>
@@ -92,12 +92,12 @@
 
 <div class="card content-card">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span>需求明细</span>
+        <span>需求孵化明细</span>
         <form method="get" action="/demand/list" class="d-flex flex-wrap gap-2 align-items-center filter-form">
-            <select name="department" class="form-select form-select-sm filter-select" data-auto-filter>
-                <option value="">全部部门</option>
+            <select name="department_id" class="form-select form-select-sm filter-select" data-auto-filter>
+                <option value="">全部单位</option>
                 {% for dept in departments %}
-                <option value="{{ dept }}" {% if department == dept %}selected{% endif %}>{{ dept }}</option>
+                <option value="{{ dept.id }}" {% if department_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
                 {% endfor %}
             </select>
             <select name="priority" class="form-select form-select-sm filter-select" data-auto-filter>
@@ -106,7 +106,7 @@
                 <option value="medium" {% if priority == 'medium' %}selected{% endif %}>中</option>
                 <option value="low" {% if priority == 'low' %}selected{% endif %}>低</option>
             </select>
-            {% if department or priority %}
+            {% if department_id or priority %}
             <a href="/demand/list" class="btn btn-sm btn-outline-secondary">重置</a>
             {% endif %}
         </form>
@@ -119,10 +119,10 @@
                     <tr>
                         <th class="col-id">ID</th>
                         <th>标题</th>
-                        <th>部门</th>
+                        <th>申请单位</th>
                         <th>优先级</th>
                         <th style="width: 9rem;">状态</th>
-                        <th>创建人</th>
+                        <th>申请人</th>
                         <th>创建时间</th>
                         <th class="col-actions">操作</th>
                     </tr>
@@ -138,7 +138,7 @@
                             <small class="text-muted text-truncate d-block demand-desc mx-auto">{{ item.description }}</small>
                             {% endif %}
                         </td>
-                        <td>{{ item.department }}</td>
+                        <td>{{ item.department.name if item.department else '-' }}</td>
                         <td>
                             {% if item.priority == 'high' %}
                             <span class="badge badge-priority-high">高</span>
@@ -151,6 +151,7 @@
                         <td>
                             {% if can_manage_demand(current_user, item) %}
                             <form method="post" action="/demand/status/{{ item.id }}" class="status-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                 <select name="status" class="form-select form-select-sm status-select status-badge-{{ current_status }}">
                                     {% for key, label in status_flow %}
                                     <option value="{{ key }}" {% if current_status == key %}selected{% endif %}>{{ label }}</option>
@@ -171,6 +172,7 @@
                                 <a href="/demand/edit/{{ item.id }}" class="btn btn-sm btn-ghost">编辑</a>
                                 <form method="post" action="/demand/delete/{{ item.id }}" class="d-inline"
                                       onsubmit="return confirm('确定删除该需求吗？');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                     <button type="submit" class="btn btn-sm btn-ghost btn-ghost-danger">删除</button>
                                 </form>
                             </div>
@@ -209,8 +211,8 @@
 
                 <div class="demand-card-grid">
                     <div class="demand-card-item">
-                        <span class="demand-card-label">部门</span>
-                        <span class="demand-card-value">{{ item.department }}</span>
+                        <span class="demand-card-label">申请单位</span>
+                        <span class="demand-card-value">{{ item.department.name if item.department else '-' }}</span>
                     </div>
                     <div class="demand-card-item">
                         <span class="demand-card-label">创建人</span>
@@ -225,6 +227,7 @@
                         <div class="demand-card-value">
                             {% if can_manage_demand(current_user, item) %}
                             <form method="post" action="/demand/status/{{ item.id }}" class="status-form">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                                 <select name="status" class="form-select form-select-sm status-select status-badge-{{ current_status }}">
                                     {% for key, label in status_flow %}
                                     <option value="{{ key }}" {% if current_status == key %}selected{% endif %}>{{ label }}</option>
@@ -245,6 +248,7 @@
                     <a href="/demand/edit/{{ item.id }}" class="btn btn-sm btn-outline-primary flex-fill">编辑</a>
                     <form method="post" action="/demand/delete/{{ item.id }}" class="flex-fill"
                           onsubmit="return confirm('确定删除该需求吗？');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="btn btn-sm btn-outline-danger w-100">删除</button>
                     </form>
                 </div>
@@ -260,9 +264,32 @@
                 </svg>
             </div>
             <p class="mb-3">暂无需求记录</p>
-            <a href="/demand/create" class="btn btn-primary">立即登记</a>
+            <a href="/demand/create" class="btn btn-primary">提交首个需求</a>
         </div>
         {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="statusRemarkModal" tabindex="-1" aria-labelledby="statusRemarkModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusRemarkModalLabel">填写变更备注</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="statusRemarkSummary"></p>
+                <label for="statusRemarkInput" class="form-label">变更备注 <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="statusRemarkInput" rows="3" maxlength="200"
+                          placeholder="请说明本次状态变更的原因、进展或下一步计划" required></textarea>
+                <div class="invalid-feedback">请填写变更备注</div>
+                <div class="form-text text-end"><span id="statusRemarkCount">0</span>/200</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="statusRemarkConfirm">确认变更</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -18,6 +18,7 @@
 <div class="card content-card">
     <div class="card-body p-4">
         <form method="post" action="{{ form_action }}" class="needs-validation" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="form-section-title">账号信息</div>
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
@@ -29,12 +30,12 @@
                 <div class="col-md-6">
                     <label for="password" class="form-label">密码 <span class="text-danger">*</span></label>
                     <input type="password" class="form-control" id="password" name="password"
-                           required minlength="4" placeholder="至少 4 位">
-                    <div class="invalid-feedback">密码至少 4 位</div>
+                           required minlength="6" placeholder="至少 6 位">
+                    <div class="invalid-feedback">密码至少 6 位</div>
                 </div>
             </div>
             <div class="alert alert-light border small mb-4">
-                新用户角色为 <strong>普通用户</strong>，可登记和管理自己的需求。
+                新用户可提交本单位 AI 需求，并跟踪智能体孵化进度。
             </div>
             <div class="form-actions sticky-actions d-flex gap-2">
                 <button type="submit" class="btn btn-primary">创建用户</button>

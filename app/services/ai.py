@@ -1,6 +1,6 @@
 import logging
 
-from openai import APIConnectionError, APIStatusError, AuthenticationError, OpenAI
+from openai import APIConnectionError, APIStatusError, APITimeoutError, AuthenticationError, OpenAI
 
 from app.core.config import settings
 from app.models import Demand
@@ -25,58 +25,61 @@ def _mock_analysis(demand: Demand, reason: str | None = None) -> str:
     desc = demand.description[:100] + ("..." if len(demand.description) > 100 else "")
     reason_line = f"（{reason}）\n" if reason else ""
 
-    return f"""【模拟分析结果】
+    return f"""【模拟评估报告】
 {reason_line}
 一、需求理解
-- 「{demand.title}」由 {demand.department}（{demand.creator}）提出，当前状态为 {status}，优先级 {priority}。
+- 「{demand.title}」由 {demand.department.name if demand.department else "未知单位"}（{demand.creator}）提出，当前孵化状态为 {status}，优先级 {priority}。
 - 核心目标：{desc}
-- 功能边界：围绕上述描述完成 MVP 闭环；具体验收标准、异常流程需进一步澄清。
+- 智能体边界：围绕上述校园场景完成 MVP 闭环；具体验收标准、数据权限与异常流程需进一步澄清。
 
 二、风险
-1. 需求边界不清晰（影响：中）— 建议召开 30 分钟需求澄清会，确认 MVP 范围
-2. 跨部门协作成本（影响：中）— 提前明确接口人与评审节点
-3. AI/数据依赖不确定（影响：高）— 确认是否依赖外部模型、数据源及权限
-4. 排期与优先级冲突（影响：{ "高" if demand.priority == "high" else "中" }）— 与现有迭代计划对齐资源
+1. 场景边界与数据范围不清晰（影响：中）— 建议召开校内需求澄清会，明确服务对象与数据来源
+2. 跨部门协同与系统对接（影响：中）— 提前明确信息化中心与各业务单位接口人
+3. 师生隐私与数据安全合规（影响：高）— 确认是否涉及个人敏感信息及脱敏方案
+4. 算力与模型服务稳定性（影响：{ "高" if demand.priority == "high" else "中" }）— 评估校内算力或云服务资源
 
 三、开发工作量
-- 预估：5～8 人天（含澄清、开发、联调、测试）
-- 组成：后端 2～3 人天、前端 1～2 人天、联调测试 2～3 人天
-- 若涉及 AI 接口对接或第三方集成，额外增加 3～5 人天
-- 前提：需求范围不再大幅变更，且无复杂权限/合规要求
+- 预估：8～15 人天（含 Agent 设计、开发、联调、测试、试点上线）
+- 组成：知识库准备 2～3 人天、智能体开发 3～5 人天、业务系统对接 2～4 人天、测试验收 2～3 人天
+- 若涉及校园统一身份认证或数据中台对接，额外增加 3～5 人天
+- 前提：场景范围稳定，且无复杂多级审批流程
 
 四、建议
-1. 【高】补充验收标准与成功指标（如效率提升百分比、覆盖场景）
-2. 【高】确认 MVP 最小功能集，避免首版范围过大
-3. 【中】安排需求评审，产品、研发、业务方共同参与
-4. 【中】如涉及 AI，提前验证模型效果与 API 稳定性
-5. 【低】上线后设定 2 周观察期，收集使用反馈再迭代"""
+1. 【高】明确 MVP 智能体能力与首批试点用户范围
+2. 【高】补充验收指标（如响应准确率、办事时长缩短比例）
+3. 【中】安排信息化中心与申请单位联合评审
+4. 【中】提前验证模型效果与校园网络环境适配性
+5. 【低】上线后设定 2 周观察期，收集师生反馈再迭代"""
 
 
 def _fallback_reason(exc: Exception) -> str:
     if isinstance(exc, AuthenticationError):
-        return "API Key 无效或已过期，已使用模拟分析"
+        return "API Key 无效或已过期，已使用模拟评估"
     if isinstance(exc, APIStatusError):
         if exc.status_code == 401:
-            return "API Key 无效或已过期，已使用模拟分析"
+            return "API Key 无效或已过期，已使用模拟评估"
         if exc.status_code == 404:
-            return "模型或接口地址不可用，已使用模拟分析"
-        return f"AI 服务异常（{exc.status_code}），已使用模拟分析"
+            return "模型或接口地址不可用，已使用模拟评估"
+        return f"AI 服务异常（{exc.status_code}），已使用模拟评估"
+    if isinstance(exc, APITimeoutError):
+        return "AI 服务响应超时，已使用模拟评估"
     if isinstance(exc, APIConnectionError):
-        return "无法连接 AI 服务，已使用模拟分析"
-    return "AI 服务调用失败，已使用模拟分析"
+        return "无法连接 AI 服务，已使用模拟评估"
+    return "AI 服务调用失败，已使用模拟评估"
 
 
 def analyze_demand(demand: Demand) -> AnalysisResult:
     if not settings.openai_api_key:
         return AnalysisResult(
             text=_mock_analysis(demand),
-            message="未配置 API Key，已使用模拟分析",
+            message="未配置 API Key，已使用模拟评估",
             is_mock=True,
         )
 
     client = OpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url or None,
+        timeout=30.0,
     )
 
     try:
@@ -85,7 +88,7 @@ def analyze_demand(demand: Demand) -> AnalysisResult:
             messages=build_analysis_messages(demand),
             temperature=0.5,
         )
-    except (AuthenticationError, APIStatusError, APIConnectionError) as exc:
+    except (AuthenticationError, APIStatusError, APIConnectionError, APITimeoutError) as exc:
         logger.warning("AI analysis failed, using mock: %s", exc)
         reason = _fallback_reason(exc)
         return AnalysisResult(
@@ -105,13 +108,13 @@ def analyze_demand(demand: Demand) -> AnalysisResult:
     content = response.choices[0].message.content
     if not content:
         return AnalysisResult(
-            text=_mock_analysis(demand, reason="AI 返回内容为空，已使用模拟分析"),
-            message="AI 返回内容为空，已使用模拟分析",
+            text=_mock_analysis(demand, reason="AI 返回内容为空，已使用模拟评估"),
+            message="AI 返回内容为空，已使用模拟评估",
             is_mock=True,
         )
 
     return AnalysisResult(
         text=content.strip(),
-        message="AI 分析完成",
+        message="AI 可行性评估完成",
         is_mock=False,
     )

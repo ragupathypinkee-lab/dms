@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}单位管理 - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+        <h1>单位管理</h1>
+        <p class="text-muted mb-0">维护校内各单位字典，供 AI 需求申请时选择</p>
+    </div>
+    <a href="/department/create" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16">
+            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+        </svg>
+        添加单位
+    </a>
+</div>
+
+<div class="card content-card">
+    <div class="card-header">单位列表</div>
+    <div class="card-body p-0">
+        {% if departments %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 demand-table">
+                <thead>
+                    <tr>
+                        <th class="col-id">ID</th>
+                        <th>单位名称</th>
+                        <th>排序</th>
+                        <th>关联需求</th>
+                        <th>创建时间</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dept in departments %}
+                    <tr>
+                        <td class="text-muted col-id">{{ dept.id }}</td>
+                        <td class="fw-medium">{{ dept.name }}</td>
+                        <td class="text-muted">{{ dept.sort_order }}</td>
+                        <td>{{ demand_counts.get(dept.id, 0) }}</td>
+                        <td class="text-muted small">{{ dept.created_at.strftime('%Y-%m-%d %H:%M') if dept.created_at else '-' }}</td>
+                        <td class="text-end">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="/department/edit/{{ dept.id }}" class="btn btn-sm btn-outline-primary">编辑</a>
+                                <form method="post" action="/department/delete/{{ dept.id }}" class="d-inline"
+                                      onsubmit="return confirm('确定删除单位「{{ dept.name }}」吗？');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                            {% if demand_counts.get(dept.id, 0) > 0 %}disabled title="该单位下仍有关联需求"{% endif %}>
+                                        删除
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center empty-state text-muted">
+            <p class="mb-3">暂无单位，请先添加</p>
+            <a href="/department/create" class="btn btn-primary">添加单位</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

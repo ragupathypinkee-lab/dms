@@ -14,7 +14,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "AI需求登记系统"
+    app_name: str = "校园AI需求管理与智能体平台"
     debug: bool = True
     secret_key: str = "change-me-in-production"
     database_url: str = f"sqlite:///{PROJECT_ROOT / 'dms.db'}"
@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     openai_model: str = "gpt-4o-mini"
+
+    def validate_runtime(self) -> None:
+        if self.debug:
+            return
+        if self.secret_key == "change-me-in-production":
+            raise RuntimeError("生产环境必须设置 SECRET_KEY")
+        if len(self.secret_key) < 32:
+            raise RuntimeError("SECRET_KEY 长度至少 32 位")
 
     @classmethod
     def settings_customise_sources(

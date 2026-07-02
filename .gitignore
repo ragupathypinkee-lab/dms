@@ -11,3 +11,8 @@ wheels/
 
 # SQLite
 *.db
+
+# Secrets
+.env
+.env.*
+!.env.example
