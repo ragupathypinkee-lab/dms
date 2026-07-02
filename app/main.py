@@ -1,16 +1,35 @@
-# 这是一个示例 Python 脚本。
+from contextlib import asynccontextmanager
 
-# 按 ⌃R 执行或将其替换为您的代码。
-# 按 双击 ⇧ 在所有地方搜索类、文件、工具窗口、操作和设置。
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+from app.config import settings
+from app.database import init_db
+from app.routers import auth, demand
 
 
-def print_hi(name):
-    # 在下面的代码行中使用断点来调试脚本。
-    print(f'Hi, {name}')  # 按 ⌘F8 切换断点。
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
 
 
-# 按装订区域中的绿色按钮以运行脚本。
-if __name__ == '__main__':
-    print_hi('PyCharm')
+app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
-# 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
+
+templates = Jinja2Templates(directory=settings.templates_dir)
+
+app.include_router(auth.router)
+app.include_router(demand.router)
+
+
+@app.get("/")
+async def root():
+    return {"message": settings.app_name}
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
