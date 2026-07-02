@@ -412,6 +412,21 @@ body {
     box-shadow: var(--shadow-xs);
 }
 
+.filter-search {
+    width: auto;
+    min-width: 14rem;
+    max-width: 18rem;
+    border-radius: var(--radius-sm);
+    border-color: var(--color-border);
+    font-size: 0.8125rem;
+    box-shadow: var(--shadow-xs);
+}
+
+.list-pagination {
+    background-color: #fafbfc;
+    border-top: 1px solid var(--color-border-light);
+}
+
 /* ---- Badges ---- */
 .badge {
     border-radius: 999px;

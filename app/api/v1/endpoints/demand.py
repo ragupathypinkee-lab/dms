@@ -1,8 +1,10 @@
 import logging
+from math import ceil
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 from starlette.responses import Response
 
@@ -47,6 +49,10 @@ from app.web.templating import templates
 router = APIRouter(prefix="/demand", tags=["demand"])
 logger = logging.getLogger(__name__)
 
+DEFAULT_PAGE_SIZE = 10
+MAX_PAGE_SIZE = 50
+MAX_SEARCH_LENGTH = 100
+
 
 def _list_url(msg: str | None = None) -> str:
     return flash_redirect("/demand/list", msg)
@@ -62,18 +68,38 @@ def _build_demand_stmt(
     user: User,
     department_id: int | None = None,
     priority: str | None = None,
+    keyword: str | None = None,
 ):
     stmt = (
         select(Demand)
         .options(joinedload(Demand.department))
         .order_by(Demand.created_at.desc())
     )
-    stmt = _apply_user_scope(stmt, user)
-    if department_id:
-        stmt = stmt.where(Demand.department_id == department_id)
-    if priority:
-        stmt = stmt.where(Demand.priority == priority)
-    return stmt
+    return _apply_demand_filters(
+        stmt,
+        user,
+        department_id=department_id,
+        priority=priority,
+        keyword=keyword,
+    )
+
+
+def _count_demands(
+    db: Session,
+    user: User,
+    department_id: int | None = None,
+    priority: str | None = None,
+    keyword: str | None = None,
+) -> int:
+    stmt = select(func.count(Demand.id))
+    stmt = _apply_demand_filters(
+        stmt,
+        user,
+        department_id=department_id,
+        priority=priority,
+        keyword=keyword,
+    )
+    return db.scalar(stmt) or 0
 
 
 def _filter_demands(
@@ -81,9 +107,32 @@ def _filter_demands(
     user: User,
     department_id: int | None = None,
     priority: str | None = None,
-) -> list[Demand]:
-    stmt = _build_demand_stmt(user, department_id=department_id, priority=priority)
-    return list(db.scalars(stmt).unique().all())
+    keyword: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> tuple[list[Demand], int, int]:
+    total = _count_demands(
+        db,
+        user,
+        department_id=department_id,
+        priority=priority,
+        keyword=keyword,
+    )
+    if total == 0:
+        return [], 0, 1
+
+    total_pages = max(1, ceil(total / page_size))
+    page = min(max(1, page), total_pages)
+    offset = (page - 1) * page_size
+
+    stmt = _build_demand_stmt(
+        user,
+        department_id=department_id,
+        priority=priority,
+        keyword=keyword,
+    )
+    stmt = stmt.offset(offset).limit(page_size)
+    return list(db.scalars(stmt).unique().all()), total, page
 
 
 def _get_demand_or_404(db: Session, demand_id: int) -> Demand:
@@ -107,6 +156,80 @@ def _parse_department_id(value: str | None) -> int | None:
     if parsed <= 0:
         return None
     return parsed
+
+
+def _parse_page(value: str | None) -> int:
+    try:
+        page = int(value or 1)
+    except ValueError:
+        return 1
+    return max(1, page)
+
+
+def _parse_page_size(value: str | None) -> int:
+    try:
+        size = int(value or DEFAULT_PAGE_SIZE)
+    except ValueError:
+        return DEFAULT_PAGE_SIZE
+    return min(max(1, size), MAX_PAGE_SIZE)
+
+
+def _parse_keyword(value: str | None) -> str | None:
+    if not value:
+        return None
+    keyword = value.strip()
+    if not keyword:
+        return None
+    return keyword[:MAX_SEARCH_LENGTH]
+
+
+def _demand_list_url(
+    *,
+    keyword: str | None = None,
+    department_id: int | None = None,
+    priority: str | None = None,
+    page: int = 1,
+    page_size: int = DEFAULT_PAGE_SIZE,
+) -> str:
+    params: dict[str, str] = {}
+    if keyword:
+        params["q"] = keyword
+    if department_id:
+        params["department_id"] = str(department_id)
+    if priority:
+        params["priority"] = priority
+    if page > 1:
+        params["page"] = str(page)
+    if page_size != DEFAULT_PAGE_SIZE:
+        params["page_size"] = str(page_size)
+    query = urlencode(params)
+    return f"/demand/list?{query}" if query else "/demand/list"
+
+
+def _apply_demand_filters(
+    stmt,
+    user: User,
+    *,
+    department_id: int | None = None,
+    priority: str | None = None,
+    keyword: str | None = None,
+):
+    stmt = _apply_user_scope(stmt, user)
+    if department_id:
+        stmt = stmt.where(Demand.department_id == department_id)
+    if priority:
+        stmt = stmt.where(Demand.priority == priority)
+    if keyword:
+        pattern = f"%{keyword}%"
+        stmt = stmt.join(Demand.department).where(
+            or_(
+                Demand.title.ilike(pattern),
+                Demand.description.ilike(pattern),
+                Demand.creator.ilike(pattern),
+                Department.name.ilike(pattern),
+            )
+        )
+    return stmt
 
 
 def _parse_demand_fields(
@@ -185,8 +308,11 @@ async def list_demands(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
+    q: str | None = None,
     department_id: str | None = None,
     priority: str | None = None,
+    page: str | None = None,
+    page_size: str | None = None,
 ):
     parsed_department_id = _parse_department_id(department_id)
     parsed_priority = None
@@ -195,12 +321,31 @@ async def list_demands(
     except ValidationError:
         parsed_priority = None
 
-    demands = _filter_demands(
+    keyword = _parse_keyword(q)
+    parsed_page = _parse_page(page)
+    parsed_page_size = _parse_page_size(page_size)
+
+    demands, total, parsed_page = _filter_demands(
         db,
         current_user,
         department_id=parsed_department_id,
         priority=parsed_priority,
+        keyword=keyword,
+        page=parsed_page,
+        page_size=parsed_page_size,
     )
+    total_pages = max(1, ceil(total / parsed_page_size)) if total else 1
+
+    pagination = {
+        "page": parsed_page,
+        "page_size": parsed_page_size,
+        "total": total,
+        "total_pages": total_pages,
+        "has_prev": parsed_page > 1,
+        "has_next": parsed_page < total_pages,
+    }
+    has_filters = bool(keyword or parsed_department_id or parsed_priority)
+
     return templates.TemplateResponse(
         request=request,
         name="demand/list.html",
@@ -209,8 +354,12 @@ async def list_demands(
             current_user=current_user,
             active_page="list",
             demands=demands,
+            keyword=keyword,
             department_id=parsed_department_id,
             priority=parsed_priority,
+            pagination=pagination,
+            has_filters=has_filters,
+            demand_list_url=_demand_list_url,
             stats=_get_stats(db, current_user),
             departments=list_departments(db),
             can_manage_demand=can_manage_demand,

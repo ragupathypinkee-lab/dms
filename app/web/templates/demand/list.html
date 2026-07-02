@@ -94,6 +94,8 @@
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>需求孵化明细</span>
         <form method="get" action="/demand/list" class="d-flex flex-wrap gap-2 align-items-center filter-form">
+            <input type="search" name="q" value="{{ keyword or '' }}" class="form-control form-control-sm filter-search"
+                   placeholder="搜索标题、描述、申请人、单位" maxlength="100" aria-label="搜索需求">
             <select name="department_id" class="form-select form-select-sm filter-select" data-auto-filter>
                 <option value="">全部单位</option>
                 {% for dept in departments %}
@@ -106,7 +108,9 @@
                 <option value="medium" {% if priority == 'medium' %}selected{% endif %}>中</option>
                 <option value="low" {% if priority == 'low' %}selected{% endif %}>低</option>
             </select>
-            {% if department_id or priority %}
+            <input type="hidden" name="page" value="1">
+            <button type="submit" class="btn btn-sm btn-primary">搜索</button>
+            {% if has_filters %}
             <a href="/demand/list" class="btn btn-sm btn-outline-secondary">重置</a>
             {% endif %}
         </form>
@@ -263,11 +267,46 @@
                     <path d="M4.98 4a.5.5 0 0 0-.39.188L1.54 8H6a.5.5 0 0 1 .5.5 1.5 1.5 0 1 0 3 0A.5.5 0 0 1 10 8h4.46l-3.05-3.812A.5.5 0 0 0 11.02 4H4.98zm9.954 5H10.45a2.5 2.5 0 0 1-4.9 0H1.066l.32 2.562a.5.5 0 0 0 .497.438h12.234a.5.5 0 0 0 .496-.438L14.933 9zM3.809 3.563A1.5 1.5 0 0 1 4.981 3h6.038a1.5 1.5 0 0 1 1.172.563l3.7 4.625a.5.5 0 0 1 .105.374l-.39 3.124A1.5 1.5 0 0 1 14.117 13H1.883a1.5 1.5 0 0 1-1.489-1.314l-.39-3.124a.5.5 0 0 1 .106-.374l3.7-4.625z"/>
                 </svg>
             </div>
+            {% if has_filters %}
+            <p class="mb-3">未找到匹配的需求，请调整搜索或筛选条件</p>
+            <a href="/demand/list" class="btn btn-outline-secondary">清除筛选</a>
+            {% else %}
             <p class="mb-3">暂无需求记录</p>
             <a href="/demand/create" class="btn btn-primary">提交首个需求</a>
+            {% endif %}
         </div>
         {% endif %}
     </div>
+    {% if demands and pagination.total_pages > 1 %}
+    <div class="card-footer list-pagination d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="text-muted small">
+            共 {{ pagination.total }} 条，第 {{ pagination.page }} / {{ pagination.total_pages }} 页
+        </div>
+        <nav aria-label="需求列表分页">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ demand_list_url(keyword=keyword, department_id=department_id, priority=priority, page=pagination.page - 1, page_size=pagination.page_size) }}" {% if not pagination.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>上一页</a>
+                </li>
+                {% for page_num in range(1, pagination.total_pages + 1) %}
+                    {% if page_num == 1 or page_num == pagination.total_pages or (page_num >= pagination.page - 2 and page_num <= pagination.page + 2) %}
+                <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ demand_list_url(keyword=keyword, department_id=department_id, priority=priority, page=page_num, page_size=pagination.page_size) }}">{{ page_num }}</a>
+                </li>
+                    {% elif page_num == pagination.page - 3 or page_num == pagination.page + 3 %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ demand_list_url(keyword=keyword, department_id=department_id, priority=priority, page=pagination.page + 1, page_size=pagination.page_size) }}" {% if not pagination.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>下一页</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% elif demands %}
+    <div class="card-footer list-pagination">
+        <div class="text-muted small">共 {{ pagination.total }} 条</div>
+    </div>
+    {% endif %}
 </div>
 
 <div class="modal fade" id="statusRemarkModal" tabindex="-1" aria-labelledby="statusRemarkModalLabel" aria-hidden="true">
