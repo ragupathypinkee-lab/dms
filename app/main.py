@@ -5,9 +5,9 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.config import settings
-from app.database import init_db
-from app.routers import auth, demand, user
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.db.session import init_db
 
 
 @asynccontextmanager
@@ -20,9 +20,7 @@ app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
-app.include_router(auth.router)
-app.include_router(demand.router)
-app.include_router(user.router)
+app.include_router(api_router)
 
 
 @app.exception_handler(HTTPException)

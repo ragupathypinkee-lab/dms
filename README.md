@@ -176,35 +176,47 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ```
 dms/
-├── app/
-│   ├── main.py              # FastAPI 入口、Session 中间件、登录拦截
-│   ├── config.py            # 应用配置
-│   ├── database.py          # 数据库连接、建表、默认用户初始化
-│   ├── models.py            # User、Demand ORM 模型
-│   ├── schemas.py           # Pydantic 模型（预留）
-│   ├── crud.py              # CRUD 操作（预留）
-│   ├── ai.py                # AI 相关逻辑（预留）
-│   ├── security.py          # 密码哈希
-│   ├── deps.py              # 登录校验、权限判断
-│   ├── status.py            # 需求状态定义与流转逻辑
-│   ├── templating.py        # Jinja2 模板引擎
-│   ├── routers/
-│   │   ├── auth.py          # 登录/退出
-│   │   └── demand.py        # 需求 CRUD 与状态流转
-│   ├── templates/
-│   │   ├── base.html        # 基础布局（顶栏 + 侧栏）
-│   │   ├── auth/
-│   │   │   └── login.html   # 登录页
-│   │   └── demand/
-│   │       ├── list.html    # 需求列表
-│   │       └── form.html    # 创建/编辑表单
-│   └── static/
-│       └── css/
-│           └── app.css      # 自定义样式
+├── app/                          # 应用主包
+│   ├── main.py                   # FastAPI 入口、中间件、路由挂载
+│   ├── api/                      # API 层
+│   │   ├── deps.py               # 依赖注入（登录、权限）
+│   │   └── v1/
+│   │       ├── router.py         # v1 路由聚合
+│   │       └── endpoints/        # 业务端点
+│   │           ├── auth.py       # 认证
+│   │           ├── demand.py     # 需求 CRUD / AI 分析
+│   │           └── user.py       # 用户管理 / 改密
+│   ├── core/                     # 核心配置
+│   │   ├── config.py             # 应用配置（.env）
+│   │   └── security.py           # 密码哈希
+│   ├── db/                       # 数据库层
+│   │   ├── base.py               # SQLAlchemy Base
+│   │   └── session.py            # 连接、Session、初始化
+│   ├── models/                   # ORM 模型
+│   │   ├── user.py
+│   │   └── demand.py
+│   ├── services/                 # 业务服务
+│   │   └── ai.py                 # AI 分析
+│   ├── utils/                    # 工具模块
+│   │   ├── messages.py           # Flash 消息
+│   │   └── status.py             # 需求状态定义
+│   └── web/                      # Web 呈现层
+│       ├── templating.py         # Jinja2 引擎
+│       ├── templates/            # HTML 模板
+│       └── static/               # 静态资源（CSS / JS）
+├── scripts/
+│   └── seed_demo.py              # 演示数据写入脚本
+├── tests/                        # 测试
 ├── pyproject.toml
 ├── uv.lock
-├── .env                     # 环境变量（本地配置，勿提交密钥）
-└── dms.db                   # SQLite 数据库（启动后自动生成）
+├── .env                          # 环境变量（本地，勿提交密钥）
+└── dms.db                        # SQLite 数据库（启动后生成）
+```
+
+写入演示数据：
+
+```bash
+uv run python scripts/seed_demo.py
 ```
 
 ## 配置项
