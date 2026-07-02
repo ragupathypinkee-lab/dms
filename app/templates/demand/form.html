@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="/demand/list">需求列表</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ page_title }}</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <h1>{{ page_title }}</h1>
+    <p class="text-muted mb-0">{{ page_subtitle }}</p>
+</div>
+
+<div class="card content-card">
+    <div class="card-body p-4">
+        <form method="post" action="{{ form_action }}" class="needs-validation" novalidate>
+            <div class="form-section-title">基本信息</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-8">
+                    <label for="title" class="form-label">需求标题 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="title" name="title"
+                           value="{{ demand.title if demand else '' }}" required maxlength="200"
+                           placeholder="请输入需求标题">
+                    <div class="invalid-feedback">请输入需求标题</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="creator" class="form-label">创建人 <span class="text-danger">*</span></label>
+                    {% if current_user.role == 'admin' %}
+                    <input type="text" class="form-control" id="creator" name="creator"
+                           value="{{ demand.creator if demand else current_user.username }}" required maxlength="100"
+                           placeholder="请输入创建人姓名">
+                    {% else %}
+                    <input type="text" class="form-control-plaintext readonly-field" id="creator" name="creator"
+                           value="{{ current_user.username }}" readonly>
+                    {% endif %}
+                    <div class="invalid-feedback">请输入创建人</div>
+                </div>
+                <div class="col-12">
+                    <label for="description" class="form-label">需求描述 <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="4" required
+                              placeholder="请详细描述需求背景、目标和预期效果">{{ demand.description if demand else '' }}</textarea>
+                    <div class="invalid-feedback">请输入需求描述</div>
+                </div>
+            </div>
+
+            <div class="form-section-title">分类信息</div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="department" class="form-label">所属部门 <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="department" name="department" list="departmentList"
+                           value="{{ demand.department if demand else '' }}" required maxlength="100"
+                           placeholder="如：研发部、产品部">
+                    <datalist id="departmentList">
+                        {% for dept in departments %}
+                        <option value="{{ dept }}"></option>
+                        {% endfor %}
+                    </datalist>
+                    <div class="invalid-feedback">请输入所属部门</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="priority" class="form-label">优先级 <span class="text-danger">*</span></label>
+                    <select class="form-select" id="priority" name="priority" required>
+                        <option value="high" {% if demand and demand.priority == 'high' %}selected{% endif %}>高</option>
+                        <option value="medium" {% if not demand or demand.priority == 'medium' %}selected{% endif %}>中</option>
+                        <option value="low" {% if demand and demand.priority == 'low' %}selected{% endif %}>低</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">状态</label>
+                    <select class="form-select" id="status" name="status">
+                        {% for key, label in status_flow %}
+                        <option value="{{ key }}" {% if (demand and normalize_status(demand.status) == key) or (not demand and key == 'evaluating') %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-section-title d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span>AI 分析</span>
+                {% if demand %}
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnAiAnalyze"
+                        data-analyze-url="/demand/analyze/{{ demand.id }}">
+                    <span class="btn-ai-label">AI 分析</span>
+                    <span class="spinner-border spinner-border-sm d-none ms-1" role="status" aria-hidden="true"></span>
+                </button>
+                {% endif %}
+            </div>
+            <div class="mb-4">
+                <label for="ai_analysis" class="form-label">AI 分析结果</label>
+                <textarea class="form-control" id="ai_analysis" name="ai_analysis" rows="8"
+                          placeholder="{% if demand %}点击上方「AI 分析」按钮自动生成{% else %}保存需求后可进行 AI 分析{% endif %}">{{ demand.ai_analysis if demand and demand.ai_analysis else '' }}</textarea>
+            </div>
+
+            <div class="form-actions sticky-actions d-flex gap-2">
+                <button type="submit" class="btn btn-primary">保存</button>
+                <a href="/demand/list" class="btn btn-outline-secondary">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

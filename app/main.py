@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, demand
+from app.routers import auth, demand, user
 
 
 @asynccontextmanager
@@ -19,15 +20,43 @@ app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
-templates = Jinja2Templates(directory=settings.templates_dir)
-
 app.include_router(auth.router)
 app.include_router(demand.router)
+app.include_router(user.router)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 403:
+        if request.url.path.startswith("/demand"):
+            return RedirectResponse(url="/demand/list?msg=forbidden", status_code=303)
+        if request.url.path.startswith("/user") and request.url.path != "/user/password":
+            return RedirectResponse(url="/demand/list?msg=admin_forbidden", status_code=303)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.middleware("http")
+async def login_required_middleware(request: Request, call_next):
+    path = request.url.path
+    public_prefixes = ("/static", "/auth/", "/docs", "/redoc", "/openapi.json")
+    if path == "/health" or path.startswith(public_prefixes):
+        return await call_next(request)
+
+    if path.startswith("/demand") or path.startswith("/user") or path == "/":
+        if "user_id" not in request.session:
+            return RedirectResponse(url="/auth/login", status_code=303)
+
+    return await call_next(request)
+
+
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
 
 @app.get("/")
-async def root():
-    return {"message": settings.app_name}
+async def root(request: Request):
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/auth/login", status_code=303)
+    return RedirectResponse(url="/demand/list", status_code=303)
 
 
 @app.get("/health")

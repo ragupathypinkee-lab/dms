@@ -1,6 +1,15 @@
-# 需求管理系统 (DMS)
+# AI 需求登记系统 (DMS)
 
-基于 FastAPI 的需求管理系统，使用 uv 管理依赖与运行环境。
+基于 FastAPI 的 AI 需求登记与管理 Web 应用，支持 Session 登录、需求 CRUD、状态自动流转。使用 uv 管理依赖与运行环境。
+
+## 功能概览
+
+- 需求登记、列表、编辑、删除
+- 按部门、优先级筛选
+- 卡片统计（总数、待评估、高优先级、涉及部门）
+- 需求状态一键流转
+- Session 登录与角色权限控制
+- Bootstrap 5 商务蓝白风格界面
 
 ## 技术栈
 
@@ -9,9 +18,10 @@
 | [uv](https://docs.astral.sh/uv/) | Python 包管理与虚拟环境 |
 | [FastAPI](https://fastapi.tiangolo.com/) | Web 框架 |
 | [SQLite](https://www.sqlite.org/) | 嵌入式数据库 |
-| [SQLAlchemy](https://www.sqlalchemy.org/) | ORM |
+| [SQLAlchemy 2.x](https://www.sqlalchemy.org/) | ORM |
 | [Jinja2](https://jinja.palletsprojects.com/) | 模板引擎 |
-| [Bootstrap 5](https://getbootstrap.com/) | 前端 UI 框架（CDN 引用） |
+| [Bootstrap 5](https://getbootstrap.com/) | 前端 UI（CDN） |
+| SessionMiddleware | Cookie Session 登录（非 JWT） |
 
 ## 环境要求
 
@@ -20,21 +30,39 @@
 
 ## 快速开始
 
-### 1. 安装依赖
+### 1. 克隆并安装依赖
 
 ```bash
 uv sync
 ```
 
-安装开发依赖（pytest、ruff 等）：
+安装开发依赖（pytest、ruff）：
 
 ```bash
 uv sync --group dev
 ```
 
-### 2. 启动服务
+### 2. 配置环境变量（可选）
 
-开发模式（热重载）：
+在项目根目录创建 `.env` 文件：
+
+```env
+APP_NAME=AI需求登记系统
+DEBUG=true
+SECRET_KEY=请替换为随机字符串
+DATABASE_URL=sqlite:///./dms.db
+
+# AI 相关（可选，后续 ai.py 使用）
+OPENAI_API_KEY=your-api-key
+OPENAI_BASE_URL=https://your-api-endpoint/v1
+OPENAI_MODEL=your-model
+```
+
+> 生产环境务必修改 `SECRET_KEY`，不要使用默认值。
+
+### 3. 启动服务
+
+开发模式（推荐，支持热重载）：
 
 ```bash
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -46,59 +74,168 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-启动后访问：
+### 4. 访问地址
 
-- API 根路径：<http://127.0.0.1:8000/>
-- 健康检查：<http://127.0.0.1:8000/health>
-- 交互式文档：<http://127.0.0.1:8000/docs>
-- ReDoc 文档：<http://127.0.0.1:8000/redoc>
+| 地址 | 说明 |
+|------|------|
+| <http://127.0.0.1:8000/> | 首页（自动跳转需求列表，未登录则跳转登录页） |
+| <http://127.0.0.1:8000/auth/login> | 登录页 |
+| <http://127.0.0.1:8000/demand/list> | 需求列表 |
+| <http://127.0.0.1:8000/demand/create> | 登记需求 |
+| <http://127.0.0.1:8000/health> | 健康检查 |
+| <http://127.0.0.1:8000/docs> | Swagger API 文档 |
 
-应用启动时会自动初始化 SQLite 数据库，默认在项目根目录生成 `dms.db`。
+首次启动会自动创建 SQLite 数据库 `dms.db`，并初始化数据表与默认用户。
+
+## 默认账号
+
+系统启动时自动写入以下账号（密码明文仅用于初始登录，数据库中存储哈希值）：
+
+| 用户名 | 密码 | 角色 | 权限 |
+|--------|------|------|------|
+| `admin` | `admin` | 管理员 | 全部需求的查看、编辑、删除、状态流转 |
+| `user` | `user` | 普通用户 | 查看全部需求；仅可编辑/删除/流转自己创建的需求 |
+
+登录页：<http://127.0.0.1:8000/auth/login>
+
+退出登录：`/auth/logout`
+
+## 权限说明
+
+| 操作 | 管理员 (admin) | 普通用户 (user) |
+|------|----------------|-----------------|
+| 查看需求列表 | ✅ 全部 | ✅ 仅自己的需求 |
+| 登记需求 | ✅ | ✅（创建人固定为当前用户名） |
+| 编辑需求 | ✅ 全部 | ✅ 仅自己的需求 |
+| 删除需求 | ✅ 全部 | ✅ 仅自己的需求 |
+| 状态流转 | ✅ 全部 | ✅ 仅自己的需求 |
+
+未登录访问 `/demand/*` 会自动跳转到登录页。
+
+## 需求状态流转
+
+需求状态可在列表页或编辑页自由切换，可选值：
+
+```
+待评估 · 分析中 · 开发中 · 测试中 · 已完成
+```
+
+更新接口：`POST /demand/status/{id}`（表单字段 `status`）
+
+## 路由一览
+
+### 认证 `/auth`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/auth/login` | 登录页 |
+| POST | `/auth/login` | 提交登录 |
+| GET | `/auth/logout` | 退出登录 |
+
+### 需求 `/demand`
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/demand/` | 跳转列表 |
+| GET | `/demand/list` | 需求列表（支持 `?department=&priority=` 筛选） |
+| GET | `/demand/create` | 创建表单 |
+| POST | `/demand/create` | 提交创建 |
+| GET | `/demand/edit/{id}` | 编辑表单 |
+| POST | `/demand/edit/{id}` | 提交更新 |
+| POST | `/demand/status/{id}` | 更新需求状态（任意状态） |
+| POST | `/demand/delete/{id}` | 删除需求 |
+
+## 数据模型
+
+### users 用户表
+
+| 字段 | 说明 |
+|------|------|
+| id | 主键 |
+| username | 用户名（唯一） |
+| password_hash | 密码哈希 |
+| role | 角色：`admin` / `user` |
+| created_at | 创建时间 |
+
+### demands 需求表
+
+| 字段 | 说明 |
+|------|------|
+| id | 主键 |
+| title | 需求标题 |
+| description | 需求描述 |
+| department | 所属部门 |
+| priority | 优先级：`high` / `medium` / `low` |
+| status | 状态：`evaluating` / `analyzing` / `developing` / `testing` / `completed` |
+| creator | 创建人 |
+| ai_analysis | AI 分析结果（可选） |
+| created_at | 创建时间 |
+| updated_at | 更新时间 |
 
 ## 目录结构
 
 ```
 dms/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI 入口，挂载静态资源 / Jinja2 / 路由
-│   ├── config.py        # 应用配置（pydantic-settings）
-│   ├── database.py      # SQLAlchemy engine、Session、数据库初始化
-│   ├── models.py        # ORM 模型
-│   ├── schemas.py       # Pydantic 请求/响应模型
-│   ├── crud.py          # 数据库 CRUD 操作
-│   ├── ai.py            # AI 相关逻辑
-│   ├── routers/         # API 路由
-│   │   ├── __init__.py
-│   │   ├── auth.py      # 认证路由（/auth）
-│   │   └── demand.py    # 需求路由（/demand）
-│   ├── templates/       # Jinja2 模板
-│   └── static/          # 静态资源（CSS、JS、图片等）
-├── pyproject.toml       # 项目配置与依赖
-├── uv.lock              # 依赖锁定文件
-└── dms.db               # SQLite 数据库（启动后自动生成，已 gitignore）
+│   ├── main.py              # FastAPI 入口、Session 中间件、登录拦截
+│   ├── config.py            # 应用配置
+│   ├── database.py          # 数据库连接、建表、默认用户初始化
+│   ├── models.py            # User、Demand ORM 模型
+│   ├── schemas.py           # Pydantic 模型（预留）
+│   ├── crud.py              # CRUD 操作（预留）
+│   ├── ai.py                # AI 相关逻辑（预留）
+│   ├── security.py          # 密码哈希
+│   ├── deps.py              # 登录校验、权限判断
+│   ├── status.py            # 需求状态定义与流转逻辑
+│   ├── templating.py        # Jinja2 模板引擎
+│   ├── routers/
+│   │   ├── auth.py          # 登录/退出
+│   │   └── demand.py        # 需求 CRUD 与状态流转
+│   ├── templates/
+│   │   ├── base.html        # 基础布局（顶栏 + 侧栏）
+│   │   ├── auth/
+│   │   │   └── login.html   # 登录页
+│   │   └── demand/
+│   │       ├── list.html    # 需求列表
+│   │       └── form.html    # 创建/编辑表单
+│   └── static/
+│       └── css/
+│           └── app.css      # 自定义样式
+├── pyproject.toml
+├── uv.lock
+├── .env                     # 环境变量（本地配置，勿提交密钥）
+└── dms.db                   # SQLite 数据库（启动后自动生成）
 ```
 
-## 配置
-
-配置通过 `app/config.py` 管理，支持在项目根目录创建 `.env` 文件覆盖默认值：
-
-```env
-APP_NAME=DMS
-DEBUG=true
-DATABASE_URL=sqlite:///./dms.db
-```
+## 配置项
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `APP_NAME` | `DMS` | 应用名称 |
-| `DEBUG` | `true` | 调试模式 |
+| `APP_NAME` | `AI需求登记系统` | 应用名称 |
+| `DEBUG` | `true` | 调试模式（开启 SQL 日志） |
+| `SECRET_KEY` | `change-me-in-production` | Session 签名密钥 |
 | `DATABASE_URL` | `sqlite:///./dms.db` | 数据库连接地址 |
 
-Bootstrap 5 的 CDN 地址也在 `config.py` 中定义，后续在 Jinja2 模板中引用即可：
+## 常见问题
 
-- `settings.bootstrap_css`
-- `settings.bootstrap_js`
+**访问页面返回 `{"detail":"Not Found"}`**
+
+通常是旧进程未加载最新路由。请重启服务，开发时建议始终使用 `--reload`：
+
+```bash
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+**端口被占用**
+
+```bash
+lsof -i :8000
+kill <PID>
+```
+
+**重置数据库**
+
+删除 `dms.db` 后重启服务，会自动重建表结构和默认账号。
 
 ## 开发
 
