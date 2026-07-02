@@ -13,15 +13,30 @@ def record_status_change(
     operator: User,
     remark: str | None = None,
 ) -> DemandStatusLog:
+    normalized_to = normalize_status(to_status)
+    if from_status is None and demand.id is not None:
+        existing = db.scalar(
+            select(DemandStatusLog)
+            .where(
+                DemandStatusLog.demand_id == demand.id,
+                DemandStatusLog.from_status.is_(None),
+            )
+            .order_by(DemandStatusLog.id.asc())
+            .limit(1)
+        )
+        if existing is not None:
+            return existing
+
     log = DemandStatusLog(
         demand_id=demand.id,
         from_status=normalize_status(from_status) if from_status else None,
-        to_status=normalize_status(to_status),
+        to_status=normalized_to,
         operator_id=operator.id,
         operator_name=operator.username,
         remark=remark,
     )
     db.add(log)
+    db.flush()
     return log
 
 
@@ -40,6 +55,29 @@ def format_status_change(log: DemandStatusLog) -> str:
         return f"提交 AI 需求，初始状态：{to_label}"
     from_label = get_status_label(log.from_status)
     return f"{from_label} → {to_label}"
+
+
+def dedupe_initial_status_logs(db: Session) -> int:
+    """保留每条需求的最早一条初始流转记录，删除重复项。"""
+    removed = 0
+    demand_ids = db.scalars(select(Demand.id)).all()
+    for demand_id in demand_ids:
+        logs = list(
+            db.scalars(
+                select(DemandStatusLog)
+                .where(
+                    DemandStatusLog.demand_id == demand_id,
+                    DemandStatusLog.from_status.is_(None),
+                )
+                .order_by(DemandStatusLog.id.asc())
+            ).all()
+        )
+        for log in logs[1:]:
+            db.delete(log)
+            removed += 1
+    if removed:
+        db.commit()
+    return removed
 
 
 def backfill_status_logs(db: Session) -> int:

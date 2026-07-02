@@ -736,6 +736,7 @@ body {
 
 .toast-container {
     z-index: 1080;
+    top: 4.5rem;
 }
 
 .toast {

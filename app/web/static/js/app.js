@@ -255,8 +255,21 @@
                     if (!form.checkValidity()) {
                         event.preventDefault();
                         event.stopPropagation();
+                        form.classList.add("was-validated");
+                        return;
                     }
                     form.classList.add("was-validated");
+                    const submitBtn = form.querySelector(
+                        'button[type="submit"].btn-primary, button[type="submit"]:not([formnovalidate])'
+                    );
+                    if (submitBtn && !submitBtn.disabled) {
+                        submitBtn.disabled = true;
+                        const label = submitBtn.textContent.trim();
+                        if (label && !submitBtn.dataset.originalLabel) {
+                            submitBtn.dataset.originalLabel = label;
+                            submitBtn.textContent = "提交中...";
+                        }
+                    }
                 },
                 false
             );

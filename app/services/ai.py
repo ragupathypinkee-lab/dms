@@ -79,7 +79,7 @@ def analyze_demand(demand: Demand) -> AnalysisResult:
     client = OpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url or None,
-        timeout=30.0,
+        timeout=settings.openai_timeout,
     )
 
     try:

@@ -81,8 +81,9 @@ def migrate_demands(db: Session) -> None:
 
 
 def migrate_status_logs(db: Session) -> None:
-    from app.services.status_log import backfill_status_logs
+    from app.services.status_log import backfill_status_logs, dedupe_initial_status_logs
 
+    dedupe_initial_status_logs(db)
     backfill_status_logs(db)
 
 
